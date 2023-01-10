@@ -1,0 +1,20 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Certificate-Utils",
+            "command": "cl.exe",
+            "args": [
+                "/Zi",
+                "/Fe${fileDirname}\\out\\main.exe",
+                "${fileDirname}\\main.cpp",
+                "/link",
+                "crypt32.lib"
+            ],
+            "group": {
+                "isDefault": true
+            },
+        }
+    ],
+    "version": "2.0.0"
+}

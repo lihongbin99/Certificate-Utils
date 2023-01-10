@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "测试中文",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${fileDirname}\\out\\main.exe",
+            "args": ["*.lihongbin.com"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+    ]
+}
