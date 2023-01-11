@@ -68,3 +68,12 @@ std::ostream& print_errmsg(std::ostream& out, DWORD err_code) {
     }
 	return out;
 }
+
+std::string replaceAll(std::string src, std::string subStr, std::string newStr) {
+    size_t index = src.find(subStr);
+    while (index != std::string::npos) {
+        src = src.replace(index, subStr.length(), newStr);
+        index = src.find(subStr);
+    }
+    return src;
+}

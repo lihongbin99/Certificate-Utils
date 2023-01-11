@@ -3,7 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
-                ""
+                "C:\\app\\cpp-plugin\\Release-Static-x86\\OpenSSL\\1.1.1s\\include"
             ]
         }
     ],

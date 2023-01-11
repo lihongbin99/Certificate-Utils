@@ -4,17 +4,25 @@
 #include <Windows.h>
 #include <wincrypt.h>
 
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/pem.h>
+
 #include "utils.cpp"
 
 using namespace std;
 
+string bast_path = ".\\cert\\";
 string base_name = "CertificateUtils_";
+string cert_suffix = ".crt";
 HCERTSTORE cert_store = NULL;
 
 bool init_cert_store();
 const CERT_CONTEXT* search_cert(string domain_name);
 bool add_cert(string domain_name);
 bool clear_ecrt();
+
+string create_ecrt(string domain_name);
 
 int main(int argc, char** argv) {
     if (argc > 1) {
@@ -25,7 +33,7 @@ int main(int argc, char** argv) {
         if (first_index == 0 || // 不能以.开头
                 last_index == domain_name.length() - 1 || // 不能以.结尾
                 last_index == string::npos || // 不能没有.
-                domain_name.length() == 1) {// 不能只有一个.
+                domain_name.length() == 1) {// 不能一个.都没有
             cout << "domain error: " << domain_name << endl;
             return EXIT_FAILURE;
         }
@@ -35,9 +43,10 @@ int main(int argc, char** argv) {
             CertFreeCertificateContext(cert_content);
             cout << "The certificate already exists: " << domain_name.c_str() << endl;
         } else {
-            if (add_cert(domain_name)) {
-                cout << "Certificate added successfully: " << domain_name.c_str() << endl;
+            if (!add_cert(domain_name)) {
+                return EXIT_FAILURE;
             }
+            cout << "Certificate added successfully: " << domain_name.c_str() << endl;
         }
     } else {
         if (clear_ecrt()) {
@@ -86,10 +95,11 @@ const CERT_CONTEXT* search_cert(string domain_name) {
 }
 
 bool add_cert(string domain_name) {
-    // TODO 生成证书...
-    string cert_file_path = "C:\\app\\cpp-plugin\\Release-Static-x86\\OpenSSL\\1.1.1s\\bin\\cert.crt";
+    string cert_file_path = create_ecrt(domain_name);
+    if (cert_file_path == "") {
+        return false;
+    }
 
-    // 读取磁盘证书
     HCERTSTORE disk_cert_store = CertOpenStore(CERT_STORE_PROV_FILENAME_A,
                            X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
                            NULL,
@@ -154,4 +164,82 @@ bool clear_ecrt() {
         return false;
     }
     return true;
+}
+
+string create_ecrt(string domain_name) {
+    string issuer = base_name + domain_name;
+    X509* x509 = X509_new();
+
+    // 设置证书版本号
+    X509_set_version(x509, 2);
+    BIGNUM* num = BN_new();
+    BN_set_bit(num, 160);
+    BN_to_ASN1_INTEGER(num, X509_get_serialNumber(x509));
+    X509_gmtime_adj(X509_get_notBefore(x509), 0);
+    X509_gmtime_adj(X509_get_notAfter(x509), 365 * 24 * 60 * 60);
+
+    // 设置证书颁发者和证书所有者信息
+    X509_NAME* name = X509_get_subject_name(x509);
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char *)issuer.c_str()    , -1, -1, 0);
+    X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC, (unsigned char *)"CertificateUtils", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(name, "O" , MBSTRING_ASC, (unsigned char *)"CertificateUtils", -1, -1, 0);
+    X509_NAME_add_entry_by_txt(name, "L" , MBSTRING_ASC, (unsigned char *)"ShenZhen"        , -1, -1, 0);
+    X509_NAME_add_entry_by_txt(name, "ST", MBSTRING_ASC, (unsigned char *)"GuangDong"       , -1, -1, 0);
+    X509_NAME_add_entry_by_txt(name, "C" , MBSTRING_ASC, (unsigned char *)"CN"              , -1, -1, 0);
+    X509_set_issuer_name(x509, name);
+
+    //添加扩展域
+    X509_EXTENSION *ext;
+    X509V3_CTX ctx;
+    X509V3_set_ctx(&ctx, x509, x509, NULL, NULL, 0);
+    ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_basic_constraints     , "critical,CA:true");
+    X509_add_ext(x509, ext, -1);
+    ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_subject_key_identifier, "hash");
+    X509_add_ext(x509, ext, -1);
+    ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_key_usage             , "critical,digitalSignature,keyCertSign,cRLSign");
+    X509_add_ext(x509, ext, -1);
+    ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_ext_key_usage         , "critical,serverAuth");
+    X509_add_ext(x509, ext, -1);
+    string subject_alt_name = "DNS.1:" + domain_name;
+    ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_subject_alt_name      , subject_alt_name.c_str());
+    X509_add_ext(x509, ext, -1);
+
+    // 生成密钥对
+    BIGNUM* bne = BN_new();
+    BN_set_word(bne, RSA_F4);
+    RSA* rsa = RSA_new();
+    RSA_generate_key_ex(rsa, 2048, bne, NULL);
+    EVP_PKEY* pkey = EVP_PKEY_new();
+    EVP_PKEY_assign_RSA(pkey, rsa);
+
+    // 为证书设置公钥和私钥
+    X509_set_pubkey(x509, pkey);
+    X509_sign(x509, pkey, EVP_sha256());
+
+    CreateDirectory(bast_path.c_str(), NULL);
+    string cert_file_path = bast_path + base_name + domain_name + cert_suffix;
+    string priv_file_path = bast_path + base_name + domain_name + ".key";
+    cert_file_path = replaceAll(cert_file_path, "*", "x");
+    priv_file_path = replaceAll(priv_file_path, "*", "x");
+
+    // 保存证书和私钥到文件
+    BIO* bp_public = BIO_new_file(cert_file_path.c_str(), "w");
+    BIO* bp_private = BIO_new_file(priv_file_path.c_str(), "w");
+    int result = PEM_write_bio_X509(bp_public, x509);
+    if (result == 1) 
+        result = PEM_write_bio_PrivateKey(bp_private, pkey, NULL, NULL, NULL, NULL, NULL);
+
+    // 释放资源
+    X509_free(x509);
+    EVP_PKEY_free(pkey);
+    BIO_free_all(bp_public);
+    BIO_free_all(bp_private);
+    BN_free(bne);
+
+    if (result == 1) {
+        return cert_file_path;
+    } else {
+        cout << "Failed to create certificate" << endl;
+        return "";
+    }
 }

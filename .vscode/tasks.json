@@ -6,10 +6,12 @@
             "command": "cl.exe",
             "args": [
                 "/Zi",
+                "/I", "C:\\app\\cpp-plugin\\Release-Static-x86\\OpenSSL\\1.1.1s\\include",
                 "/Fe${fileDirname}\\out\\main.exe",
                 "${fileDirname}\\main.cpp",
                 "/link",
-                "crypt32.lib"
+                "/LIBPATH:C:\\app\\cpp-plugin\\Release-Static-x86\\OpenSSL\\1.1.1s\\lib",
+                "libcrypto.lib", "libssl.lib", "advapi32.lib", "user32.lib", "Crypt32.lib", "Ws2_32.lib"
             ],
             "group": {
                 "isDefault": true
