@@ -58,12 +58,13 @@ int G2U(const char* from, std::string& out) {
 	return CharacterSetEncodeing(from, CP_ACP, CP_UTF8, out);
 }
 
-static inline void println_errmsg(DWORD err_code) {
+std::ostream& print_errmsg(std::ostream& out, DWORD err_code) {
     CHAR err_msg[64];
     DWORD result = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err_code, LANG_USER_DEFAULT, err_msg, sizeof(err_msg), NULL);
     if (result != 0) {
-        std::cout << err_msg << std::endl;
+        std::cout << err_msg;
     } else {
-        std::cout << err_code << " and " << GetLastError() << std::endl;
+        std::cout << err_code << " and " << GetLastError();
     }
+	return out;
 }

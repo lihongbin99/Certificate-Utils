@@ -2,12 +2,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "测试中文",
+            "name": "查询or添加",
+            "preLaunchTask": "main",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${fileDirname}\\out\\main.exe",
-            "args": ["*.lihongbin.com"],
-            "stopAtEntry": false,
+            "args": ["*.lhb13520.com"],
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "清除",
+            "preLaunchTask": "main",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${fileDirname}\\out\\main.exe",
+            "args": [],
             "cwd": "${fileDirname}",
             "environment": [],
             "console": "externalTerminal"

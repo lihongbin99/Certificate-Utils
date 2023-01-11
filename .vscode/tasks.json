@@ -2,7 +2,7 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "Certificate-Utils",
+            "label": "main",
             "command": "cl.exe",
             "args": [
                 "/Zi",
