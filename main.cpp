@@ -13,6 +13,7 @@ HCERTSTORE cert_store = NULL;
 
 bool init_cert_store();
 const CERT_CONTEXT* search_cert(string domain_name);
+bool add_cert(string domain_name);
 bool clear_ecrt();
 
 int main(int argc, char** argv) {
@@ -34,7 +35,9 @@ int main(int argc, char** argv) {
             CertFreeCertificateContext(cert_content);
             cout << "The certificate already exists: " << domain_name.c_str() << endl;
         } else {
-            cout << "Certificate added successfully: " << domain_name.c_str() << endl;
+            if (add_cert(domain_name)) {
+                cout << "Certificate added successfully: " << domain_name.c_str() << endl;
+            }
         }
     } else {
         if (clear_ecrt()) {
@@ -52,8 +55,7 @@ bool init_cert_store() {
     }
     cert_store = CertOpenSystemStoreA(NULL, "ROOT");
     if (NULL == cert_store) {
-        DWORD err_code = GetLastError();
-        cout << "open cert store error: ", print_errmsg(cout, err_code) << endl;;
+        cout << "open cert store error: ", print_errmsg(cout, GetLastError()) << endl;
     }
     return NULL != cert_store;
 }
@@ -81,6 +83,39 @@ const CERT_CONTEXT* search_cert(string domain_name) {
         cout << "find cert error: ", print_errmsg(cout, err_code) << endl;;
     }
     return NULL;
+}
+
+bool add_cert(string domain_name) {
+    // TODO 生成证书...
+    string cert_file_path = "C:\\app\\cpp-plugin\\Release-Static-x86\\OpenSSL\\1.1.1s\\bin\\cert.crt";
+
+    // 读取磁盘证书
+    HCERTSTORE disk_cert_store = CertOpenStore(CERT_STORE_PROV_FILENAME_A,
+                           X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                           NULL,
+                           CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG,
+                           cert_file_path.c_str());
+    if (NULL == disk_cert_store) {
+        cout << "open disk cert store error: ", print_errmsg(cout, GetLastError()) << endl;
+        return false;
+    }
+
+    const CERT_CONTEXT* cert_file = CertEnumCertificatesInStore(disk_cert_store, NULL);
+    if (NULL == cert_file) {
+        cout << "open disk cert file error: ", print_errmsg(cout, GetLastError()) << endl;
+        CertCloseStore(disk_cert_store, CERT_CLOSE_STORE_FORCE_FLAG);
+        return false;
+    }
+
+    if (!init_cert_store()) {
+        return false;
+    }
+
+    if (!CertAddCertificateContextToStore(cert_store, cert_file, CERT_STORE_ADD_REPLACE_EXISTING, NULL)) {
+        cout << "Failed to add certificate: ", print_errmsg(cout, GetLastError()) << endl;
+        return false;
+    }
+    return true;
 }
 
 bool clear_ecrt() {
